@@ -23,8 +23,8 @@ from sklearn.metrics import accuracy_score, classification_report, confusion_mat
 from sklearn.model_selection import train_test_split
 from sklearn.tree import plot_tree
 
-st.set_page_config(page_title="Glass Classifier", layout="wide")
-st.title("Glass Sample Classifier (Random Forest)")
+st.set_page_config(page_title="Random Forest Classifier", layout="wide")
+st.title("Random Forest Classifier")
 
 st.markdown(
     """
@@ -73,6 +73,29 @@ if db_file is not None:
     test_size = st.slider("Test set size (for evaluation)", 0.1, 0.4, 0.25, 0.05)
     n_estimators = st.slider("Number of trees (n_estimators)", 100, 1000, 500, 50)
 
+    # --- Random state adjuster -----------------------------------------
+    col_a, col_b = st.columns([3, 1])
+    with col_a:
+        random_state = st.number_input(
+            "Random state (seed)",
+            min_value=0,
+            max_value=2_147_483_647,
+            value=42,
+            step=1,
+            help="Controls the train/test split and the Random Forest's randomness. "
+                 "Same seed + same data = same results every time. Change it to see "
+                 "how sensitive your accuracy is to the particular split, or check "
+                 "'Randomize' for a fresh seed on each run.",
+        )
+    with col_b:
+        randomize_seed = st.checkbox("Randomize", value=False)
+
+    if randomize_seed:
+        import random as _random
+        random_state = _random.randint(0, 2_147_483_647)
+        st.caption(f"Using random seed: {random_state}")
+    # ---------------------------------------------------------------------
+
     if st.button("Train model", type="primary"):
         frames = []
         for sheet in selected_sheets:
@@ -98,10 +121,10 @@ if db_file is not None:
 
         # Evaluation split
         X_train, X_test, y_train, y_test = train_test_split(
-            X, y, test_size=test_size, random_state=42, stratify=y
+            X, y, test_size=test_size, random_state=random_state, stratify=y
         )
         eval_clf = RandomForestClassifier(
-            n_estimators=n_estimators, random_state=42, n_jobs=-1
+            n_estimators=n_estimators, random_state=random_state, n_jobs=-1
         )
         eval_clf.fit(X_train, y_train)
         y_pred = eval_clf.predict(X_test)
@@ -125,16 +148,17 @@ if db_file is not None:
 
         # Final model trained on ALL data (used for real classification)
         final_clf = RandomForestClassifier(
-            n_estimators=n_estimators, random_state=42, n_jobs=-1
+            n_estimators=n_estimators, random_state=random_state, n_jobs=-1
         )
         final_clf.fit(X, y)
 
         st.session_state.model = final_clf
         st.session_state.feature_cols = feature_cols
         st.session_state.class_labels = labels
+        st.session_state.random_state_used = random_state
 
         st.success(
-            "Final model trained on all available data. "
+            f"Final model trained on all available data (random_state={random_state}). "
             "You can now classify unknown samples below."
         )
 
